@@ -16,6 +16,8 @@ type User = {
 type Path = {
   path: string[]
   strength: number
+  hops: number
+  edgeStrengths: number[]
 }
 
 export default function ExplorerPage() {
@@ -25,15 +27,18 @@ export default function ExplorerPage() {
   const [users, setUsers] = useState<User[]>([])
   const [target, setTarget] = useState("")
   const [paths, setPaths] = useState<Path[]>([])
+  const [status, setStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // Redirect if not logged in
   useEffect(() => {
     if (!user) {
       router.push("/select-profile")
     }
   }, [user, router])
 
+  // Fetch users
   useEffect(() => {
     async function fetchUsers() {
       const res = await fetch("/api/test")
@@ -49,6 +54,7 @@ export default function ExplorerPage() {
     setLoading(true)
     setError("")
     setPaths([])
+    setStatus(null)
 
     try {
       const res = await fetch(
@@ -60,7 +66,8 @@ export default function ExplorerPage() {
       if (!res.ok) {
         setError(data.error || "Something went wrong")
       } else {
-        setPaths(data)
+        setPaths(data.paths || [])
+        setStatus(data.status || null)
       }
     } catch {
       setError("Failed to fetch paths")
@@ -154,17 +161,23 @@ export default function ExplorerPage() {
 
                 {/* Horizontal Layout */}
                 <div className="overflow-x-auto">
-                  <div className="flex items-center gap-8 py-4 min-w-max">
+                  <div className="flex items-center gap-8 py-6 min-w-max">
                     {p.path.map((nodeId, i) => {
                       const userData = users.find((u) => u.id === nodeId)
                       if (!userData) return null
 
+                      const edgeStrength = p.edgeStrengths[i]
+
                       return (
                         <div key={i} className="flex items-center gap-6">
                           <UserChip user={userData} />
+
                           {i < p.path.length - 1 && (
-                            <div className="text-slate-400 text-3xl font-light">
-                              →
+                            <div className="flex flex-col items-center text-xs">
+                              <span className="text-slate-400 text-2xl">→</span>
+                              <span className="text-indigo-600 font-semibold">
+                                {edgeStrength?.toFixed(2)}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -182,7 +195,11 @@ export default function ExplorerPage() {
                   </h3>
 
                   <div className="h-[420px]">
-                    <PathGraph path={p.path} users={users} />
+                    <PathGraph
+                      path={p.path}
+                      users={users}
+                      edgeStrengths={p.edgeStrengths}
+                    />
                   </div>
                 </div>
 
@@ -198,6 +215,18 @@ export default function ExplorerPage() {
 
               </div>
             ))}
+          </div>
+        )}
+
+        {/* No Path Found UI */}
+        {!loading && status === "no_path_found" && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">
+              No Introduction Path Found
+            </h3>
+            <p className="text-slate-500">
+              There is currently no viable multi-hop connection between these professionals.
+            </p>
           </div>
         )}
 

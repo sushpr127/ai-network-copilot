@@ -4,7 +4,21 @@ import { calculateConnectionStrength } from "@/lib/strength"
 type PathResult = {
   path: string[]
   strength: number
+  hops: number
+  edgeStrengths: number[]
 }
+
+type PathSearchResult = {
+  paths: PathResult[]
+  pathsFound: number
+  searchDepth: number
+  status: 'success' | 'no_path_found' | 'source_not_in_graph' | 'target_not_in_graph'
+}
+
+// Constants
+const MAX_PATHS_TO_RETURN = 5
+const MIN_STRENGTH_THRESHOLD = 0.1
+const LENGTH_PENALTY_BASE = 0.9
 
 /**
  * Build adjacency list from connections table
@@ -15,123 +29,198 @@ async function buildAdjacencyMap(): Promise<Map<string, Set<string>>> {
     .select("user_id_1, user_id_2")
 
   if (error) {
-    throw new Error("Failed to fetch connections")
+    throw new Error(`Failed to fetch connections: ${error.message}`)
   }
 
   const adjacency = new Map<string, Set<string>>()
 
   for (const row of data || []) {
     const { user_id_1, user_id_2 } = row
-
+    
     if (!adjacency.has(user_id_1)) {
       adjacency.set(user_id_1, new Set())
     }
     if (!adjacency.has(user_id_2)) {
       adjacency.set(user_id_2, new Set())
     }
-
+    
     adjacency.get(user_id_1)!.add(user_id_2)
     adjacency.get(user_id_2)!.add(user_id_1)
   }
 
   return adjacency
 }
+
 /**
  * Cached edge strength calculator
  */
-async function getEdgeStrengthCached(
+async function getEdgeStrength(
   userA: string,
   userB: string,
   cache: Map<string, number>
 ): Promise<number> {
-  const key =
-    userA < userB ? `${userA}-${userB}` : `${userB}-${userA}`
-
+  // Create consistent cache key (alphabetically sorted)
+  const key = userA < userB ? `${userA}:${userB}` : `${userB}:${userA}`
+  
   if (cache.has(key)) {
     return cache.get(key)!
   }
 
   const strength = await calculateConnectionStrength(userA, userB)
   cache.set(key, strength)
-
+  
   return strength
 }
+
+/**
+ * Calculate path strength with length penalty
+ */
+function calculatePathStrength(edgeStrengths: number[], hops: number): number {
+  const weakestLink = Math.min(...edgeStrengths)
+  const lengthPenalty = Math.pow(LENGTH_PENALTY_BASE, hops - 1)
+  return weakestLink * lengthPenalty
+}
+
+/**
+ * Find all introduction paths up to depth 3
+ */
 export async function findIntroductionPaths(
   source: string,
   target: string
-): Promise<PathResult[]> {
-  if (source === target) return []
+): Promise<PathSearchResult> {
+  // Edge case: same user
+  if (source === target) {
+    return {
+      paths: [],
+      pathsFound: 0,
+      searchDepth: 0,
+      status: 'no_path_found'
+    }
+  }
 
+  // Build graph
   const adjacency = await buildAdjacencyMap()
+
+  // Check if users exist in graph
+  if (!adjacency.has(source)) {
+    return {
+      paths: [],
+      pathsFound: 0,
+      searchDepth: 3,
+      status: 'source_not_in_graph'
+    }
+  }
+
+  if (!adjacency.has(target)) {
+    return {
+      paths: [],
+      pathsFound: 0,
+      searchDepth: 3,
+      status: 'target_not_in_graph'
+    }
+  }
+
   const strengthCache = new Map<string, number>()
   const results: PathResult[] = []
 
-  const neighborsOfSource = adjacency.get(source) || new Set()
+  const sourceNeighbors = adjacency.get(source)!
 
-  // 1️⃣ Direct connection
-  if (neighborsOfSource.has(target)) {
-    const strength = await getEdgeStrengthCached(
-      source,
-      target,
-      strengthCache
-    )
-
+  // ========================================
+  // DEPTH 1: Direct connection (X → Y)
+  // ========================================
+  if (sourceNeighbors.has(target)) {
+    const strength = await getEdgeStrength(source, target, strengthCache)
+    
     results.push({
       path: [source, target],
       strength,
+      hops: 1,
+      edgeStrengths: [strength]
     })
   }
 
-  // 2️⃣ Depth 2 paths (X → A → Y)
-  for (const a of neighborsOfSource) {
-    if (a === target) continue
+  // ========================================
+  // DEPTH 2: One intermediary (X → A → Y)
+  // ========================================
+  for (const a of sourceNeighbors) {
+    if (a === target) continue  // Skip direct connection (already handled)
 
-    const neighborsOfA = adjacency.get(a) || new Set()
-
-    if (neighborsOfA.has(target)) {
-      const s1 = await getEdgeStrengthCached(source, a, strengthCache)
-      const s2 = await getEdgeStrengthCached(a, target, strengthCache)
-
-      const weakest = Math.min(s1, s2)
-      const strength = weakest * 0.9
+    const aNeighbors = adjacency.get(a) || new Set()
+    
+    if (aNeighbors.has(target)) {
+      const s1 = await getEdgeStrength(source, a, strengthCache)
+      const s2 = await getEdgeStrength(a, target, strengthCache)
+      
+      const edgeStrengths = [s1, s2]
+      const strength = calculatePathStrength(edgeStrengths, 2)
 
       results.push({
         path: [source, a, target],
         strength,
+        hops: 2,
+        edgeStrengths
       })
     }
   }
 
-  // 3️⃣ Depth 3 paths (X → A → B → Y)
-  for (const a of neighborsOfSource) {
+  // ========================================
+  // DEPTH 3: Two intermediaries (X → A → B → Y)
+  // ========================================
+  for (const a of sourceNeighbors) {
     if (a === target) continue
 
-    const neighborsOfA = adjacency.get(a) || new Set()
+    const aNeighbors = adjacency.get(a) || new Set()
 
-    for (const b of neighborsOfA) {
-      if (b === source || b === target) continue
+    for (const b of aNeighbors) {
+      // Critical: Prevent cycles and backtracking
+      if (b === source) continue  // Don't go back to source
+      if (b === target) continue  // Don't skip to target (handled in depth 2)
+      if (b === a) continue       // Prevent self-loop (shouldn't happen, but safe)
 
-      const neighborsOfB = adjacency.get(b) || new Set()
+      const bNeighbors = adjacency.get(b) || new Set()
 
-      if (neighborsOfB.has(target)) {
-        const s1 = await getEdgeStrengthCached(source, a, strengthCache)
-        const s2 = await getEdgeStrengthCached(a, b, strengthCache)
-        const s3 = await getEdgeStrengthCached(b, target, strengthCache)
+      if (bNeighbors.has(target)) {
+        const s1 = await getEdgeStrength(source, a, strengthCache)
+        const s2 = await getEdgeStrength(a, b, strengthCache)
+        const s3 = await getEdgeStrength(b, target, strengthCache)
 
-        const weakest = Math.min(s1, s2, s3)
-        const strength = weakest * 0.81
+        const edgeStrengths = [s1, s2, s3]
+        const strength = calculatePathStrength(edgeStrengths, 3)
 
         results.push({
           path: [source, a, b, target],
           strength,
+          hops: 3,
+          edgeStrengths
         })
       }
     }
   }
 
-  // Sort strongest first
-  results.sort((a, b) => b.strength - a.strength)
+  // ========================================
+  // Filter, Sort, and Return
+  // ========================================
 
-  // Return top 3
-  return results.slice(0, 3)
+  // Filter by minimum strength threshold
+  const strongPaths = results.filter(p => p.strength >= MIN_STRENGTH_THRESHOLD)
+
+  // Sort by strength descending
+  strongPaths.sort((a, b) => {
+    // Primary: strength
+    if (b.strength !== a.strength) {
+      return b.strength - a.strength
+    }
+    // Tiebreaker: prefer shorter paths
+    return a.hops - b.hops
+  })
+
+  // Return top N paths
+  const topPaths = strongPaths.slice(0, MAX_PATHS_TO_RETURN)
+
+  return {
+    paths: topPaths,
+    pathsFound: results.length,
+    searchDepth: 3,
+    status: topPaths.length > 0 ? 'success' : 'no_path_found'
+  }
 }
