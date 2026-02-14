@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext"
 type User = {
   id: string
   name: string
+  job_title?: string
+  industry?: string
 }
 
 export default function SelectProfilePage() {
@@ -23,30 +25,43 @@ export default function SelectProfilePage() {
     fetchUsers()
   }, [])
 
-  const handleSelect = (user: User) => {
+  function handleSelect(user: User) {
     login(user)
     router.push("/dashboard")
   }
 
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center">
-      <h1 className="text-3xl font-bold mb-8">
-        Select Your Profile
-      </h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-16 px-6">
+      <div className="max-w-5xl mx-auto text-center mb-12">
+        <h1 className="text-4xl font-bold mb-4">
+          Select Your Profile
+        </h1>
+        <p className="text-gray-600 text-lg">
+          Choose a professional identity to explore your network intelligence.
+        </p>
+      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
         {users.map((user) => (
           <div
             key={user.id}
             onClick={() => handleSelect(user)}
-            className="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg cursor-pointer transition"
+            className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition duration-300 cursor-pointer p-6 text-center group"
           >
-            <div className="h-16 w-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
+            <div className="w-20 h-20 mx-auto rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-semibold mb-4 group-hover:scale-110 transition">
               {user.name.charAt(0)}
             </div>
 
-            <p className="text-center font-medium">
+            <h3 className="font-semibold text-lg">
               {user.name}
+            </h3>
+
+            <p className="text-sm text-gray-500">
+              {user.job_title || "Professional"}
+            </p>
+
+            <p className="text-xs text-gray-400 mt-1">
+              {user.industry}
             </p>
           </div>
         ))}

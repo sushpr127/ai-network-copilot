@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase"
 export async function GET() {
   const { data, error } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, job_title, industry")
     .limit(200)
 
   if (error) {
