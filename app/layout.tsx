@@ -9,13 +9,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-100 text-gray-900">
+      <body className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 antialiased">
+
         <AuthProvider>
+
+          {/* Navbar */}
           <Navbar />
-          <main className="max-w-6xl mx-auto px-6 py-10">
-            {children}
+
+          {/* Main Content Area */}
+          <main className="relative">
+            <div className="max-w-7xl mx-auto px-6 py-12">
+              {children}
+            </div>
           </main>
+
         </AuthProvider>
+
       </body>
     </html>
   )
