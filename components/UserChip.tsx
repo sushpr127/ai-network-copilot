@@ -20,7 +20,7 @@ export default function UserChip({ user }: Props) {
 
       {/* User Info */}
       <div>
-        <div className="font-semibold text-gray-900">
+        <div className="font-semibold text-indigo-700 tracking-tight">
           {user.name}
         </div>
 

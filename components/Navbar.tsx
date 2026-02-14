@@ -56,7 +56,7 @@ export default function Navbar() {
           {user ? (
             <div className="flex items-center space-x-4 ml-6">
 
-              <span className="text-slate-700 font-medium">
+              <span className="text-indigo-600 font-semibold">
                 {user.name}
               </span>
 

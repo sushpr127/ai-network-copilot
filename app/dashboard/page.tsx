@@ -31,6 +31,13 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/* 🔥 Network Stats Section */}
+      <div className="grid md:grid-cols-3 gap-6 mb-14">
+        <StatCard label="Total Connections" value="48" />
+        <StatCard label="Strong Connections" value="12" />
+        <StatCard label="Max Path Depth" value="3" />
+      </div>
+
       {/* Action Cards */}
       <div className="grid md:grid-cols-2 gap-8">
 
@@ -62,6 +69,33 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+/* ============================= */
+/*           Stat Card           */
+/* ============================= */
+
+type StatCardProps = {
+  label: string
+  value: string
+}
+
+function StatCard({ label, value }: StatCardProps) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition duration-200">
+      <p className="text-sm text-slate-500 mb-2">
+        {label}
+      </p>
+      <p className="text-2xl font-bold text-indigo-600">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+/* ============================= */
+/*        Dashboard Card         */
+/* ============================= */
+
 type DashboardCardProps = {
   title: string
   description: string
@@ -94,4 +128,3 @@ function DashboardCard({
     </Link>
   )
 }
-
