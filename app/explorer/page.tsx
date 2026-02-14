@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useAuth } from "@/context/AuthContext"
+import { useRouter } from "next/navigation"
 
 type User = {
   id: string
@@ -13,13 +15,23 @@ type Path = {
 }
 
 export default function ExplorerPage() {
+  const { user } = useAuth()
+  const router = useRouter()
+
   const [users, setUsers] = useState<User[]>([])
-  const [source, setSource] = useState("")
   const [target, setTarget] = useState("")
   const [paths, setPaths] = useState<Path[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // 🔒 Redirect if not logged in
+  useEffect(() => {
+    if (!user) {
+      router.push("/select-profile")
+    }
+  }, [user, router])
+
+  // Fetch users for target dropdown
   useEffect(() => {
     async function fetchUsers() {
       const res = await fetch("/api/test")
@@ -30,7 +42,7 @@ export default function ExplorerPage() {
   }, [])
 
   async function handleSearch() {
-    if (!source || !target) return
+    if (!user || !target) return
 
     setLoading(true)
     setError("")
@@ -38,7 +50,7 @@ export default function ExplorerPage() {
 
     try {
       const res = await fetch(
-        `/api/paths?source=${source}&target=${target}`
+        `/api/paths?source=${user.id}&target=${target}`
       )
 
       const data = await res.json()
@@ -55,36 +67,33 @@ export default function ExplorerPage() {
     }
   }
 
+  if (!user) return null
+
   return (
     <div>
       <h1 className="text-4xl font-bold mb-2">
         Introduction Path Explorer
       </h1>
+
       <p className="text-gray-600 mb-8">
-        Discover the strongest multi-hop introduction paths between professionals.
+        Discover the strongest multi-hop introduction paths in your network.
       </p>
 
       {/* Controls */}
       <div className="bg-white rounded-2xl shadow-md p-8 mb-10">
         <div className="grid md:grid-cols-2 gap-6 mb-6">
+
+          {/* Logged-in user display */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Source Professional
+              Logged In As
             </label>
-            <select
-              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-            >
-              <option value="">Select Source</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-full border border-gray-300 p-3 rounded-lg bg-gray-100">
+              {user.name}
+            </div>
           </div>
 
+          {/* Target selector */}
           <div>
             <label className="block text-sm font-medium mb-2">
               Target Professional
@@ -95,11 +104,13 @@ export default function ExplorerPage() {
               onChange={(e) => setTarget(e.target.value)}
             >
               <option value="">Select Target</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
+              {users
+                .filter((u) => u.id !== user.id)
+                .map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
             </select>
           </div>
         </div>
