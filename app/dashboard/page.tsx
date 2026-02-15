@@ -2,18 +2,57 @@
 
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+
+type NetworkStats = {
+  totalConnections: number
+  strongConnections: number
+  averageStrength: number
+  maxPathDepth: number
+}
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
   const router = useRouter()
 
+  const [stats, setStats] = useState<NetworkStats | null>(null)
+  const [loadingStats, setLoadingStats] = useState(true)
+  const [statsError, setStatsError] = useState("")
+
+  // Redirect if not logged in
   useEffect(() => {
     if (!user) {
       router.push("/select-profile")
     }
   }, [user, router])
+
+  // Fetch personalized stats
+  useEffect(() => {
+    if (!user) return
+
+    async function fetchStats(userId: string) {
+      try {
+        const res = await fetch(
+          `/api/network-stats?userId=${userId}`
+        )
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          setStatsError(data.error || "Failed to load stats")
+        } else {
+          setStats(data)
+        }
+      } catch {
+        setStatsError("Failed to fetch network stats")
+      } finally {
+        setLoadingStats(false)
+      }
+    }
+
+    fetchStats(user.id)
+  }, [user])
 
   if (!user) return null
 
@@ -23,20 +62,63 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-12">
         <h1 className="text-4xl font-bold text-slate-900 mb-3">
-          Welcome back, <span className="text-indigo-600">{user.name}</span>
+          Welcome back,{" "}
+          <span className="text-indigo-600">{user.name}</span>
         </h1>
 
         <p className="text-slate-600 text-lg">
-          Analyze your network and uncover high-confidence introduction paths.
+          Analyze your personal network and uncover high-confidence introduction paths.
         </p>
       </div>
 
-      {/* 🔥 Network Stats Section */}
-      <div className="grid md:grid-cols-3 gap-6 mb-14">
-        <StatCard label="Total Connections" value="48" />
-        <StatCard label="Strong Connections" value="12" />
-        <StatCard label="Max Path Depth" value="3" />
+      {/* 🔥 Personalized Network Stats */}
+      <div className="grid md:grid-cols-4 gap-6 mb-14">
+
+        <StatCard
+          label="Your Connections"
+          value={
+            loadingStats
+              ? "..."
+              : stats?.totalConnections?.toString() ?? "0"
+          }
+        />
+
+        <StatCard
+          label="Strong Connections"
+          value={
+            loadingStats
+              ? "..."
+              : stats?.strongConnections?.toString() ?? "0"
+          }
+        />
+
+        <StatCard
+          label="Avg Connection Strength"
+          value={
+            loadingStats
+              ? "..."
+              : stats?.averageStrength
+                ? stats.averageStrength.toFixed(2)
+                : "0"
+          }
+        />
+
+        <StatCard
+          label="Max Path Depth"
+          value={
+            loadingStats
+              ? "..."
+              : stats?.maxPathDepth?.toString() ?? "3"
+          }
+        />
+
       </div>
+
+      {statsError && (
+        <div className="mb-10 bg-red-50 border border-red-200 p-4 rounded-xl text-red-600">
+          {statsError}
+        </div>
+      )}
 
       {/* Action Cards */}
       <div className="grid md:grid-cols-2 gap-8">
