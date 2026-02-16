@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 🔹 1️⃣ Resolve user names (no UUIDs to Gemini)
+    /* ---------------------------------------------------- */
+    /* 1️⃣ Resolve User Names (Never send UUIDs to AI)      */
+    /* ---------------------------------------------------- */
+
     const { data: users } = await supabase
       .from("users")
       .select("id, first_name, last_name")
@@ -43,7 +46,10 @@ export async function POST(req: NextRequest) {
       (id: string) => userMap.get(id) || id
     )
 
-    // 🔹 2️⃣ Gather edge relationship signals
+    /* ---------------------------------------------------- */
+    /* 2️⃣ Collect Relationship Signals Per Edge            */
+    /* ---------------------------------------------------- */
+
     const edgeDetails: EdgeDetail[] = []
 
     for (let i = 0; i < path.length - 1; i++) {
@@ -69,22 +75,64 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 🔹 3️⃣ Deterministic Base Explanation
+    /* ---------------------------------------------------- */
+    /* 3️⃣ Improved Deterministic Explanation (Hop-by-Hop)  */
+    /* ---------------------------------------------------- */
+
+    const hopBreakdown = edgeDetails
+      .map((edge) => {
+        const contextSignals = []
+
+        if (edge.sharedCompany) contextSignals.push("shared company")
+        if (edge.sharedEducation) contextSignals.push("shared education")
+        if (edge.mutualFollow) contextSignals.push("mutual follow")
+
+        const contextText =
+          contextSignals.length > 0
+            ? `They share ${contextSignals.join(" and ")}.`
+            : "They do not share strong contextual overlap."
+
+        let engagementText = ""
+        if (edge.messages > 10) {
+          engagementText = "They have strong interaction history."
+        } else if (edge.messages > 3) {
+          engagementText = "They show moderate engagement."
+        } else if (edge.messages > 0) {
+          engagementText = "They have light interaction."
+        } else {
+          engagementText = "There is minimal engagement between them."
+        }
+
+        return `
+• ${edge.from} → ${edge.to}:
+  ${engagementText} ${contextText}
+`
+      })
+      .join("\n")
+
     const weakestEdge = edgeDetails.reduce((min, current) =>
       current.messages < min.messages ? current : min
     )
 
     const deterministicSummary = `
-This is a ${path.length - 1}-hop introduction path 
-with an overall strength score of ${totalStrength.toFixed(2)}.
+This is a ${path.length - 1}-hop introduction path between 
+${namedPath.join(" → ")}.
 
-The most fragile relationship appears between 
+The overall path strength is ${totalStrength.toFixed(2)}.
+
+Relationship breakdown:
+${hopBreakdown}
+
+The weakest link in this chain appears between 
 ${weakestEdge.from} and ${weakestEdge.to}, 
-based on lower engagement levels.
+as it has the lowest engagement signal.
 `
 
-    // 🔹 4️⃣ AI Enhancement Layer
-    const explanation = await generatePathExplanation({
+    /* ---------------------------------------------------- */
+    /* 4️⃣ AI Enhancement Layer                             */
+    /* ---------------------------------------------------- */
+
+    const aiExplanation = await generatePathExplanation({
       path: namedPath,
       totalStrength,
       edges: edgeDetails,
@@ -93,7 +141,7 @@ based on lower engagement levels.
 
     return NextResponse.json({
       deterministic: deterministicSummary,
-      ai: explanation,
+      ai: aiExplanation,
     })
 
   } catch (error: any) {

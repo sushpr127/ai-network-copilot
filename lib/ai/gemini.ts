@@ -29,63 +29,72 @@ export async function generatePathExplanation(data: {
     model: "gemini-2.0-flash",
   })
 
-  const contextSection = data.edges
-    .map((edge, index) => {
-      return `
-Connection ${index + 1}: ${edge.from} → ${edge.to}
-- Shared Company: ${edge.sharedCompany}
-- Shared Education: ${edge.sharedEducation}
-- Mutual Follow: ${edge.mutualFollow}
-- Total Messages: ${edge.messages}
-- Last Interaction: ${edge.lastInteraction ?? "None"}
-`
+  // Compact context (cleaner for model + cheaper tokens)
+  const relationshipContext = data.edges
+    .map((edge) => {
+      return `${edge.from} → ${edge.to} | 
+SharedCompany:${edge.sharedCompany} 
+SharedEducation:${edge.sharedEducation} 
+MutualFollow:${edge.mutualFollow} 
+Messages:${edge.messages}`
     })
     .join("\n")
 
   const prompt = `
-You are a professional networking intelligence copilot.
+You are an expert professional networking strategist.
 
-Your job is to analyze introduction paths between professionals
-and provide strategic insight.
+The system has already generated a factual analysis of an introduction path.
+Your job is to provide deeper strategic insight — NOT to repeat the base summary.
 
------------------------------------
+--------------------------------------------------
+
 INTRODUCTION PATH:
 ${data.path.join(" → ")}
 
-OVERALL STRENGTH SCORE:
+OVERALL STRENGTH:
 ${data.totalStrength.toFixed(2)}
 
-BASE SYSTEM SUMMARY:
+BASE SYSTEM ANALYSIS:
 ${data.deterministicSummary}
 
-RELATIONSHIP DETAILS:
-${contextSection}
------------------------------------
+RELATIONSHIP SIGNALS:
+${relationshipContext}
 
-Write a high-quality professional analysis in natural paragraph form.
+--------------------------------------------------
 
-Your response must include:
+Instructions:
 
-1. Why this path is structurally strong or weak.
-2. Which relationship is the critical bottleneck and why.
-3. What shared context (company, education, interaction, follow patterns) strengthens credibility.
-4. A strategic recommendation: Is this a smart introduction route?
-5. If appropriate, suggest how to improve the weakest relationship before requesting the intro.
+• Build on the base analysis — do NOT restate it.
+• Identify structural strengths and weaknesses.
+• Clearly explain why the weakest link matters.
+• Evaluate credibility of the introduction chain.
+• Give a strategic recommendation:
+  - Is this a smart introduction path?
+  - Should the source strengthen a specific relationship first?
 
 Tone:
-- Professional
-- Analytical
-- Insightful
-- Clear and confident
+Professional, analytical, confident, strategic.
 
-Do NOT repeat raw data.
-Do NOT mention "JSON" or "data".
-Do NOT list bullet points.
-Write in cohesive paragraphs.
+Style:
+Write 2–4 well-structured paragraphs.
+No bullet points.
+No data repetition.
+No mentioning of raw fields.
+No referencing JSON or system input.
 `
 
-  const result = await model.generateContent(prompt)
-  const response = await result.response
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.6,      // Balanced creativity
+      topP: 0.9,
+      maxOutputTokens: 500,
+    },
+  })
 
-  return response.text()
+  const response = await result.response
+  const text = response.text()
+
+  // Safety fallback (never return empty string)
+  return text?.trim() || "Strategic analysis unavailable."
 }
