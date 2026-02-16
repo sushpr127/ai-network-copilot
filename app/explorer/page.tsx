@@ -31,6 +31,14 @@ export default function ExplorerPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  const [explanations, setExplanations] = useState<{
+    [key: number]: {
+      loading: boolean
+      deterministic?: string
+      ai?: string
+    }
+  }>({})
+
   // Redirect if not logged in
   useEffect(() => {
     if (!user) {
@@ -55,6 +63,7 @@ export default function ExplorerPage() {
     setError("")
     setPaths([])
     setStatus(null)
+    setExplanations({})
 
     try {
       const res = await fetch(
@@ -76,13 +85,90 @@ export default function ExplorerPage() {
     }
   }
 
+  // 🔥 Explain Path
+  async function handleExplainPath(p: Path, index: number) {
+    if (explanations[index]?.loading) return
+
+    // Convert UUIDs → names (for temporary local explanation only)
+    const pathNames = p.path.map(id =>
+      users.find(u => u.id === id)?.name || "Unknown"
+    )
+
+    const weakestIndex = p.edgeStrengths.indexOf(
+      Math.min(...p.edgeStrengths)
+    )
+
+    const weakestA =
+      users.find(u => u.id === p.path[weakestIndex])?.name || "Unknown"
+
+    const weakestB =
+      users.find(u => u.id === p.path[weakestIndex + 1])?.name || "Unknown"
+
+    const confidence =
+      p.strength >= 0.7
+        ? "high-confidence"
+        : p.strength >= 0.4
+        ? "moderate-confidence"
+        : "low-confidence"
+
+    const tempDeterministic = `
+This is a ${p.hops}-hop introduction path between 
+${pathNames.join(" → ")}.
+
+The overall path strength is ${p.strength.toFixed(
+      2
+    )}, indicating a ${confidence} route.
+
+The weakest relationship in this chain appears between 
+${weakestA} and ${weakestB}.
+`
+
+    setExplanations(prev => ({
+      ...prev,
+      [index]: {
+        loading: true,
+        deterministic: tempDeterministic
+      }
+    }))
+
+    try {
+      const res = await fetch("/api/explain-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: p.path, // ✅ IMPORTANT: send UUIDs
+          totalStrength: p.strength
+        })
+      })
+
+      const data = await res.json()
+
+      setExplanations(prev => ({
+        ...prev,
+        [index]: {
+          loading: false,
+          deterministic: data.deterministic,
+          ai: data.ai
+        }
+      }))
+    } catch {
+      setExplanations(prev => ({
+        ...prev,
+        [index]: {
+          loading: false,
+          deterministic: tempDeterministic,
+          ai: "AI explanation failed to load."
+        }
+      }))
+    }
+  }
+
   if (!user) return null
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 py-12 px-6">
       <div className="max-w-6xl mx-auto">
 
-        {/* Header */}
         <h1 className="text-4xl font-bold mb-3">
           Introduction Path Explorer
         </h1>
@@ -148,22 +234,20 @@ export default function ExplorerPage() {
                 key={index}
                 className="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 space-y-10"
               >
-                {/* Header */}
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-lg text-slate-800">
                     Path #{index + 1}
                   </span>
-
                   <span className="bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full text-sm font-semibold">
                     Strength: {p.strength.toFixed(3)}
                   </span>
                 </div>
 
-                {/* Horizontal Layout */}
+                {/* Horizontal Path */}
                 <div className="overflow-x-auto">
                   <div className="flex items-center gap-8 py-6 min-w-max">
                     {p.path.map((nodeId, i) => {
-                      const userData = users.find((u) => u.id === nodeId)
+                      const userData = users.find(u => u.id === nodeId)
                       if (!userData) return null
 
                       const edgeStrength = p.edgeStrengths[i]
@@ -171,7 +255,6 @@ export default function ExplorerPage() {
                       return (
                         <div key={i} className="flex items-center gap-6">
                           <UserChip user={userData} />
-
                           {i < p.path.length - 1 && (
                             <div className="flex flex-col items-center text-xs">
                               <span className="text-slate-400 text-2xl">→</span>
@@ -188,19 +271,13 @@ export default function ExplorerPage() {
 
                 <div className="border-t border-slate-200" />
 
-                {/* Graph Section */}
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
-                    Network Visualization
-                  </h3>
-
-                  <div className="h-[420px]">
-                    <PathGraph
-                      path={p.path}
-                      users={users}
-                      edgeStrengths={p.edgeStrengths}
-                    />
-                  </div>
+                {/* Graph */}
+                <div className="h-[420px]">
+                  <PathGraph
+                    path={p.path}
+                    users={users}
+                    edgeStrengths={p.edgeStrengths}
+                  />
                 </div>
 
                 <div className="border-t border-slate-200" />
@@ -208,17 +285,58 @@ export default function ExplorerPage() {
                 {/* Strength Bar */}
                 <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-600 transition-all duration-500"
+                    className="h-full bg-indigo-600"
                     style={{ width: `${p.strength * 100}%` }}
                   />
                 </div>
+
+                {/* Explain Button */}
+                <button
+                  onClick={() => handleExplainPath(p, index)}
+                  className="bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-black transition"
+                >
+                  Explain Path
+                </button>
+
+                {/* Explanation Panel */}
+                {explanations[index] && (
+                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        Base Analysis
+                      </h4>
+                      <p className="text-slate-700 whitespace-pre-line">
+                        {explanations[index].deterministic}
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        AI Strategic Insight
+                      </h4>
+
+                      {explanations[index].loading ? (
+                        <div className="animate-pulse text-slate-400">
+                          Generating AI insight...
+                        </div>
+                      ) : (
+                        <p className="text-slate-700 whitespace-pre-line">
+                          {explanations[index].ai}
+                        </p>
+                      )}
+                    </div>
+
+            
+
+                  </div>
+                )}
 
               </div>
             ))}
           </div>
         )}
 
-        {/* No Path Found UI */}
         {!loading && status === "no_path_found" && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
             <h3 className="text-lg font-semibold text-slate-800 mb-2">
