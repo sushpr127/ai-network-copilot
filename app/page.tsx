@@ -51,7 +51,12 @@ export default function Home() {
   )
 }
 
-function FeatureCard({ title, description }) {
+type FeatureCardProps = {
+  title: string
+  description: string
+}
+
+function FeatureCard({ title, description }: FeatureCardProps) {
   return (
     <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm hover:shadow-md transition duration-200">
       <h3 className="font-semibold text-lg mb-3 text-slate-900">
