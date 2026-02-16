@@ -79,7 +79,7 @@ export default function DashboardPage() {
           value={
             loadingStats
               ? "..."
-              : stats?.totalConnections?.toString() ?? "0"
+              : (stats?.totalConnections ?? 0).toString()
           }
         />
 
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           value={
             loadingStats
               ? "..."
-              : stats?.strongConnections?.toString() ?? "0"
+              : (stats?.strongConnections ?? 0).toString()
           }
         />
 
@@ -97,9 +97,9 @@ export default function DashboardPage() {
           value={
             loadingStats
               ? "..."
-              : stats?.averageStrength
+              : stats?.averageStrength !== undefined
                 ? stats.averageStrength.toFixed(2)
-                : "0"
+                : "0.00"
           }
         />
 
@@ -108,7 +108,7 @@ export default function DashboardPage() {
           value={
             loadingStats
               ? "..."
-              : stats?.maxPathDepth?.toString() ?? "3"
+              : (stats?.maxPathDepth ?? 3).toString()
           }
         />
 
@@ -121,13 +121,19 @@ export default function DashboardPage() {
       )}
 
       {/* Action Cards */}
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid md:grid-cols-3 gap-8">
 
         <DashboardCard
           title="Explore Introduction Paths"
           description="Discover the strongest multi-hop paths across your professional network."
           link="/explorer"
           primary
+        />
+
+        <DashboardCard
+          title="View My Connections"
+          description="See all professionals you are directly connected to and analyze their strength."
+          link="/connections"
         />
 
         <DashboardCard
