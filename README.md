@@ -1,123 +1,83 @@
-AI Networking Copilot
+# AI Networking Copilot
 
-An AI-enhanced professional networking system that models relationships as a weighted graph and computes optimal multi-hop introduction paths using trust propagation and deterministic scoring.
+> A graph-based AI system that computes the strongest multi-hop introduction path between two professionals using weighted trust propagation and a hybrid deterministic + AI architecture.
 
-Rather than treating connections as binary (connected / not connected), this system assigns each relationship a measurable strength score and ranks introduction paths using a weakest-link trust model.
+---
 
-🚀 Core Idea
+##  Core Concept
 
-Cold outreach is noisy.
-Warm introductions convert.
+Professional networking is not binary.
 
-This system answers:
+Instead of modeling relationships as simply “connected” or “not connected,” this system assigns **weighted edge strengths** between users and ranks introduction paths using a **weakest-link trust model**.
 
-What is the strongest introduction path between two professionals — and why?
+The system answers:
 
-🧠 Architecture Overview
+> What is the strongest introduction path between two professionals — and why?
 
-The system is built around a hybrid design:
 
-Deterministic Graph Engine
 
-Models users as nodes
+## System Architecture
 
-Models relationships as weighted edges
+The architecture follows a **hybrid design**:
 
-Computes edge strength using interaction, recency, and context signals
+### 1️⃣ Deterministic Graph Engine
+- Users → Nodes
+- Relationships → Weighted edges (0–1)
+- Edge scoring based on engagement, recency, and shared context
+- Multi-hop path traversal
+- Weakest-link path ranking
 
-Ranks paths using weakest-link scoring
+### 2️⃣ AI Explanation Layer
+- Interprets structured graph outputs
+- Generates strategic networking insight
+- Keeps reasoning explainable and cost-controlled
 
-AI Explanation Layer
-
-Interprets deterministic outputs
-
-Provides strategic networking insights
-
-Keeps reasoning transparent and explainable
-
-The algorithm selects the path.
+**Design Principle:**  
+The algorithm selects the path.  
 The AI explains it.
 
-🧮 Relationship Strength Model
 
-Each edge weight (0–1) is computed using:
 
-Bidirectional interaction frequency
+## ⚙️ Tech Stack
 
-Recency decay (90-day half-life)
+- **Frontend:** Next.js (TypeScript)
+- **Backend:** Next.js API Routes
+- **Database:** Supabase (PostgreSQL)
+- **Graph Logic:** Custom weighted traversal engine
+- **AI Layer:** Gemini (strategic explanation generation)
 
-Shared context (company, education)
 
-Mutual follow signals
 
-EdgeStrength = min((0.6 × interaction + 0.4 × recency) × contextMultiplier, 1.0)
+## 📊 Current Capabilities
 
-This transforms abstract “trust” into a measurable signal.
+- Weighted professional graph modeling
+- Multi-hop path discovery
+- Trust propagation scoring
+- Deterministic explanation summaries
+- AI-generated strategic insights
+- Personalized network statistics
+- Connection strength visualization
 
-🔗 Path Ranking Strategy
 
-Instead of summing edge strengths, the system uses:
 
-Weakest-Link Scoring
+## 🚀 Future Improvements
 
-PathStrength = min(edge strengths) − hop penalty
+- Graph database migration (Neo4j)
+- Precomputed edge weight caching
+- Influence propagation metrics
+- Background recalculation jobs
+- Embedding-based similarity augmentation
+- Large-scale path precomputation
 
-A chain is only as strong as its weakest relationship.
 
-This avoids ranking short but weak paths above longer but stronger ones.
 
-🏗 Tech Stack
+## 🎯 What This Project Demonstrates
 
-Next.js (TypeScript)
+- Graph-based data modeling
+- Deterministic + AI hybrid system design
+- Trust scoring architecture
+- Multi-hop traversal logic
+- Explainable AI layering
+- Scalability tradeoff thinking
 
-Supabase (PostgreSQL)
 
-Custom weighted graph traversal
-
-Deterministic scoring engine
-
-Gemini AI (strategic explanation layer)
-
-📊 Current Capabilities
-
-Weighted professional graph modeling
-
-Multi-hop path discovery
-
-Trust propagation scoring
-
-Deterministic explanation summaries
-
-AI-generated strategic insights
-
-Personalized network statistics
-
-Connection strength visualization
-
-🔮 Future Improvements
-
-Graph database migration (Neo4j)
-
-Precomputed edge weight caching
-
-Influence propagation metrics
-
-Background recalculation jobs
-
-Large-scale path precomputation
-
-Embedding-based similarity augmentation
-
-🎯 What This Project Demonstrates
-
-Graph-based data modeling
-
-Deterministic + AI hybrid architecture
-
-Trust scoring systems
-
-Path optimization logic
-
-Explainable AI layering
-
-Scalability tradeoff thinking
